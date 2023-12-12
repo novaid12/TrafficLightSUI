@@ -6,81 +6,100 @@
 //
 
 import SwiftUI
-import CoreData
 
 struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
-
+    @State private var timer: Timer?
+    @State private var clickOnOff = true
+    @State private var count = 0
+    @State private var redLight = RedCircle(alpha: 0.2)
+    @State private var yellowLight = YellowCircle(alpha: 0.2)
+    @State private var greenLight = GreenCircle(alpha: 0.2)
+    @State private var buttonName = "Start"
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        VStack {
+            
+            VStack(alignment: .center) {
+                redLight
+                    .padding(.all, 10)
+                yellowLight
+                    .padding(.all, 10)
+                greenLight
+                    .padding(.all, 10)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+            .background(Color(.lightGray))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .padding()
+            
+            
+            
+            Spacer()
+            HStack {
+                Button(
+                    action: {
+                        if clickOnOff {
+                            trafficFunc()
+                            clickOnOff.toggle()
+                            buttonName = "Stop"
+                        } else if !clickOnOff {
+                            clickOnOff.toggle()
+                            timer?.invalidate()
+                            buttonName = "Start"
+                        }
+                    },
+                    label: { Text(buttonName)
+                        .frame(width: 150, height: 35)
+                        .font(.system(size: 20))
                     }
-                }
+                )
+                .buttonStyle(BlueButton())
             }
-            Text("Select an item")
+     
         }
+        .padding()
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
+    func trafficFunc() {
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { _ in
+            switch count {
+            case 0:
+                redLight.alpha = 1.0
+                yellowLight.alpha = 0.2
+                count = 1
 
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+            case 1:
+                yellowLight.alpha = 1.0
+                count = 2
+
+            case 2:
+                redLight.alpha = 0.2
+                yellowLight.alpha = 0.2
+                greenLight.alpha = 1.0
+                count = 3
+
+            case 3:
+                yellowLight.alpha = 1.0
+                greenLight.alpha = 0.2
+                count = 0
+
+            default:
+                return
             }
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
+        })
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
+struct BlueButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding()
+            .background(.blue)
+            .foregroundStyle(.white)
+            .scaleEffect(configuration.isPressed ? 1.2 : 1)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
 
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
 }
